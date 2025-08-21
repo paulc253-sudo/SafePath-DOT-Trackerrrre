@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafePath SAP Tracker</title>
+    <!--
+    This software is the proprietary work of Paul Collette, DBA Compass Recovery & Counseling, LLC and is protected by copyright law.
+    All rights reserved. Unauthorized copying, distribution, or modification of this software is strictly prohibited.
+    Copyright © 2024 Paul Collette.
+    -->
+    <!-- Use a simple CDN for Tailwind CSS for easy local use -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* General body and container styles for a modern, full-screen look */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #2c3e50; /* Deep charcoal background */
+            color: #ecf0f1; /* Light gray for text */
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .main-container {
+            width: 100%; /* Now takes full width of the body/viewport */
+            margin: 0;
+            background-color: #34495e; /* Slightly lighter charcoal for the app body */
+        }
+        
+        /* Custom scrollbar for better aesthetics */
+        .notes-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        .notes-list::-webkit-scrollbar-track {
+            background: #2c3e50;
+        }
+        .notes-list::-webkit-scrollbar-thumb {
+            background: #8e44ad; /* Vibrant purple for the scrollbar thumb */
+            border-radius: 4px;
+        }
+        .notes-list::-webkit-scrollbar-thumb:hover {
+            background: #9b59b6;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        /* Table styles with a professional, compact feel */
+        th, td {
+            padding: 10px; /* Reduced padding for a more compact look */
+            text-align: left;
+            white-space: nowrap;
+            font-size: 0.875rem; /* text-sm equivalent */
+        }
+        th {
+            background-color: #f39c12; /* Vibrant orange for table header */
+            font-weight: 600;
+            color: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        /* Changed the hover effect to a semi-transparent background to avoid text clashing */
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Style for editable input fields */
+        td input, td select {
+            background-color: #fff;
+            color: #2c3e50;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            padding: 4px 8px;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s ease-in-out;
+            font-size: 0.875rem;
+        }
+        td input:focus, td select:focus {
+            border-color: #e67e22;
+            box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.5);
+        }
+        
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="gray"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
+            background-repeat: no-repeat;
+            background-position: right 0.7em center;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5em;
+        }
+        
+        /* Card view styles for mobile */
+        .card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #4a657c; /* Darker border for cards */
+        }
+        .card-label {
+            font-weight: 500;
+            color: #bdc3c7;
+            font-size: 0.875rem;
+        }
+        .card-value {
+            color: #ecf0f1;
+            font-size: 0.875rem;
+            text-align: right;
+        }
+        
+        /* Keyframe for the slide-in/out animation */
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); }
+            to { transform: translateX(100%); }
+        }
+        .animate-slide-in {
+            animation: slideIn 0.5s ease-out forwards;
+        }
+        .animate-slide-out {
+            animation: slideOut 0.5s ease-in forwards;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-8">
+    <div class="main-container rounded-3xl shadow-2xl overflow-hidden min-h-screen flex flex-col">
+        <!-- Header with a cool gradient design -->
+        <header class="bg-gradient-to-r from-[#f9d8a5] to-[#e67e22] text-white p-6 shadow-xl rounded-t-3xl">
+            <div class="flex items-center justify-between">
+                <h1 class="text-3xl font-bold tracking-tight drop-shadow-md text-gray-800">
+                    SafePath SAP Tracker
+                </h1>
+                <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-4 sm:mt-0">
+                    <!-- New "Download Backup" button with a professional blue gradient -->
+                    <button id="backupButton" class="bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-medium py-2 px-6 rounded-full transition-colors duration-200 shadow-md">
+                        Download Backup
+                    </button>
+                    <!-- New "Restore" button with a subtle gray gradient -->
+                    <button id="restoreButton" class="bg-gradient-to-r from-gray-500 to-gray-700 hover:from-gray-600 hover:to-gray-800 text-white font-medium py-2 px-6 rounded-full transition-colors duration-200 shadow-md">
+                        Restore
+                    </button>
+                </div>
+                <button id="homeButton" class="bg-gray-800 bg-opacity-30 hover:bg-opacity-50 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200 shadow-lg">
+                    Home
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area with full-screen padding -->
+        <main class="p-6 flex-1 overflow-auto">
+            <!-- Home View -->
+            <div id="homeView" class="view">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 pb-4 border-b border-gray-600">
+                    <h2 class="text-2xl font-semibold text-white">Client List</h2>
+                    <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-4 sm:mt-0">
+                        <button id="newClientButton" class="bg-[#2ecc71] hover:bg-[#27ae60] text-white font-medium py-2 px-6 rounded-full transition-colors duration-200 shadow-md">
+                            + Add New Client
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Desktop Table View -->
+                <div id="desktopTable" class="hidden md:block table-container">
+                    <table id="clientTable" class="min-w-full rounded-xl shadow-md border-collapse">
+                        <thead>
+                            <tr>
+                                <th id="clientNameHeader" class="cursor-pointer hover:bg-opacity-90 transition-colors">Client Name</th>
+                                <th>Company Name</th>
+                                <th>+ Test Type</th>
+                                <th>Referral Source</th>
+                                <th>Referral Date</th>
+                                <th>Payment Status</th>
+                                <th>RTD Status</th>
+                                <th>First Session</th>
+                                <th>Second Session</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientList">
+                            <!-- Client rows will be dynamically inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile Card View -->
+                <div id="mobileCards" class="block md:hidden space-y-4">
+                    <!-- Client cards will be dynamically inserted here -->
+                </div>
+
+                <p id="noClientsMessage" class="text-center text-gray-400 text-lg py-12 hidden">No clients added yet. Click "Add New Client" to get started.</p>
+            </div>
+
+            <!-- Client Details View -->
+            <div id="clientDetailsView" class="view hidden">
+                <div class="mb-6 pb-4 border-b border-gray-600">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-semibold text-white mb-2">
+                            <span id="clientNameTitle"></span>
+                        </h2>
+                        <button id="deleteClientButton" class="text-red-400 hover:text-red-600 text-sm font-medium transition-colors duration-200">
+                            Delete Client
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-8">
+                    <!-- Session Notes Section -->
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-medium text-gray-300">Session Notes</h3>
+                            <button id="newNoteButton" class="bg-[#f39c12] hover:bg-[#e67e22] text-white font-medium py-2 px-5 rounded-full transition-colors duration-200 shadow-md">
+                                + Add Note
+                            </button>
+                        </div>
+                        <div class="bg-[#2c3e50] p-4 rounded-xl h-[400px] notes-list overflow-y-auto border border-gray-600">
+                            <ul id="noteList" class="space-y-4">
+                                <!-- Notes will be dynamically inserted here -->
+                            </ul>
+                            <p id="noNotesMessage" class="text-center text-gray-500 text-base py-12 hidden">No notes for this client yet.</p>
+                        </div>
+                    </div>
+                    <!-- Note Editor Section -->
+                    <div id="noteEditorSection" class="w-full md:w-1/2 flex flex-col hidden">
+                        <h3 class="text-xl font-medium text-gray-300 mb-4">Edit Note</h3>
+                        <div class="flex flex-col h-full bg-[#2c3e50] p-6 rounded-xl shadow-inner border border-gray-600">
+                            <label for="noteContent" class="text-sm font-medium text-gray-300 mb-2">Note Content</label>
+                            <textarea id="noteContent" rows="10" class="w-full p-3 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f39c12] text-white bg-gray-700 flex-1"></textarea>
+                            <div class="flex justify-end mt-4 space-x-2">
+                                <button id="saveNoteButton" class="bg-[#f39c12] hover:bg-[#e67e22] text-white font-medium py-2 px-6 rounded-full transition-colors duration-200 shadow-lg">
+                                    Save Note
+                                </button>
+                                <button id="cancelEditButton" class="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-full transition-colors duration-200">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- The modal-container now has a click listener to hide all modals if a click occurs outside of them -->
+    <div id="modal-container" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <!-- New Client Modal -->
+        <!-- The modal-content class is used to prevent clicks inside from bubbling up and closing the modal -->
+        <div id="newClientModal" class="modal-content bg-[#2c3e50] text-white rounded-2xl p-8 shadow-2xl w-full max-w-md transform transition-transform duration-300 scale-95">
+            <h3 class="text-xl font-semibold mb-4">Add New Client</h3>
+            <form id="newClientForm">
+                <div class="mb-4">
+                    <label for="clientName" class="block text-gray-300 font-medium mb-1 text-sm">Client Name</label>
+                    <input type="text" id="clientName" required class="w-full p-3 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f39c12] text-white bg-gray-700">
+                </div>
+                <div class="mb-4">
+                    <label for="companyName" class="block text-gray-300 font-medium mb-1 text-sm">Company Name</label>
+                    <input type="text" id="companyName" class="w-full p-3 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f39c12] text-white bg-gray-700">
+                </div>
+                <div class="mb-4">
+                    <label for="testType" class="block text-gray-300 font-medium mb-1 text-sm">+ Test Type</label>
+                    <input type="text" id="testType" class="w-full p-3 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f39c12] text-white bg-gray-700">
+                </div>
+                <div class="mb-4">
+                    <label for="referralSource" class="block text-gray-300 font-medium mb-1 text-sm">Referral Source</label>
+                    <input type="text" id="referralSource" class="w-full p-3 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f39c12] text-white bg-gray-700">
+                </div>
+                <div class="mb-4">
+                    <label for="referralDate" class="block text-gray-300 font-medium mb-1 text-sm">Referral Date</label>
+                    <input type="date" id="referralDate" class="w-full p-3 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f39c12] text-white bg-gray-700">
+                </div>
+                <div class="mb-4">
+                    <label for="paymentStatus" class="block text-gray-300 font-medium mb-1 text-sm">Payment Status</label>
+                    <select id="paymentStatus" class="w-full p-3 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f39c12] text-white bg-gray-700">
+                        <option value="Unpaid">Unpaid</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Partial">Partial</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="returnToDutyStatus" class="block text-gray-300 font-medium mb-1 text-sm">RTD Status</label>
+                    <select id="returnToDutyStatus" class="w-full p-3 border border-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f39c12] text-white bg-gray-700">
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Non-Compliant">Non-Compliant</option>
+                    </select>
+                </div>
+                <!-- Removed Payment Balance field -->
+
+                <div class="flex justify-end space-x-2 mt-6">
+                    <button type="button" id="cancelClientButton" class="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-full transition-colors duration-200">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-[#2ecc71] hover:bg-[#27ae60] text-white font-medium py-2 px-6 rounded-full transition-colors duration-200 shadow-lg">
+                        Save Client
+                    </button>
+                </div>
+            </form>
+        </div>
+        <!-- Restore Modal -->
+        <!-- The modal-content class is used to prevent clicks inside from bubbling up and closing the modal -->
+        <div id="restoreModal" class="modal-content bg-[#2c3e50] text-white rounded-2xl p-8 shadow-2xl w-full max-w-md transform transition-transform duration-300 scale-95">
+            <h3 class="text-xl font-semibold mb-4">Restore Data from Backup</h3>
+            <p class="text-gray-300 mb-6">Warning: This will overwrite all existing client data. Please select your backup file.</p>
+            <input type="file" id="restoreFile" accept=".json" class="block w-full text-sm text-gray-300
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-[#e67e22] file:text-white
+                hover:file:bg-[#f39c12]"/>
+            <div class="flex justify-end space-x-2 mt-6">
+                <button id="cancelRestoreButton" class="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-full transition-colors duration-200">
+                    Cancel
+                </button>
+                <button id="confirmRestoreButton" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-full transition-colors duration-200">
+                    Restore
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <!-- The modal-content class is used to prevent clicks inside from bubbling up and closing the modal -->
+    <div id="deleteModal" class="modal-content hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="bg-[#2c3e50] text-white rounded-2xl p-8 shadow-2xl w-full max-w-sm">
+            <h3 class="text-xl font-semibold mb-4">Confirm Deletion</h3>
+            <p class="text-gray-300 mb-6">Are you sure you want to delete this client and all their notes? This action cannot be undone.</p>
+            <div class="flex justify-end space-x-2">
+                <button id="cancelDeleteButton" class="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-full transition-colors duration-200">
+                    Cancel
+                </button>
+                <button id="confirmDeleteButton" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-full transition-colors duration-200">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Message Box -->
+    <div id="messageBox" class="fixed bottom-8 right-8 bg-[#f39c12] text-white p-4 rounded-xl shadow-lg transition-transform transform translate-x-full hidden z-[100]">
+        <p id="messageText"></p>
+    </div>
+
+<script>
+    // Constants for DOM elements
+    const homeView = document.getElementById('homeView');
+    const clientDetailsView = document.getElementById('clientDetailsView');
+    const newClientButton = document.getElementById('newClientButton');
+    const backupButton = document.getElementById('backupButton');
+    const restoreButton = document.getElementById('restoreButton');
+    const clientList = document.getElementById('clientList');
+    const mobileCards = document.getElementById('mobileCards');
+    const desktopTable = document.getElementById('desktopTable');
+    const noClientsMessage = document.getElementById('noClientsMessage');
+    const newClientModal = document.getElementById('newClientModal');
+    const restoreModal = document.getElementById('restoreModal');
+    const deleteModal = document.getElementById('deleteModal');
+    const modalContainer = document.getElementById('modal-container');
+    const newClientForm = document.getElementById('newClientForm');
+    const clientNameInput = document.getElementById('clientName');
+    const companyNameInput = document.getElementById('companyName');
+    const testTypeInput = document.getElementById('testType');
+    const referralSourceInput = document.getElementById('referralSource');
+    const referralDateInput = document.getElementById('referralDate');
+    const paymentStatusSelect = document.getElementById('paymentStatus');
+    const returnToDutyStatusSelect = document.getElementById('returnToDutyStatus');
+    const cancelClientButton = document.getElementById('cancelClientButton');
+    const homeButton = document.getElementById('homeButton');
+    const clientNameTitle = document.getElementById('clientNameTitle');
+    const noteList = document.getElementById('noteList');
+    const noNotesMessage = document.getElementById('noNotesMessage');
+    const newNoteButton = document.getElementById('newNoteButton');
+    const noteEditorSection = document.getElementById('noteEditorSection');
+    const noteContentTextarea = document.getElementById('noteContent');
+    const saveNoteButton = document.getElementById('saveNoteButton');
+    const cancelEditButton = document.getElementById('cancelEditButton');
+    const deleteClientButton = document.getElementById('deleteClientButton');
+    const confirmDeleteButton = document.getElementById('confirmDeleteButton');
+    const cancelDeleteButton = document.getElementById('cancelDeleteButton');
+    const messageBox = document.getElementById('messageBox');
+    const messageText = document.getElementById('messageText');
+    const clientNameHeader = document.getElementById('clientNameHeader');
+    const restoreFile = document.getElementById('restoreFile');
+    const confirmRestoreButton = document.getElementById('confirmRestoreButton');
+    const cancelRestoreButton = document.getElementById('cancelRestoreButton');
+
+    let currentClientId = null;
+    let editingNoteId = null;
+    let sortDirection = 'asc';
+
+    // --- Helper Functions ---
+
+    /**
+     * Shows a custom message box with a given text.
+     * @param {string} text The message to display.
+     */
+    function showMessage(text) {
+        messageText.textContent = text;
+        messageBox.classList.remove('hidden', 'translate-x-full');
+        messageBox.classList.add('animate-slide-in');
+        setTimeout(() => {
+            messageBox.classList.remove('animate-slide-in');
+            messageBox.classList.add('animate-slide-out');
+            setTimeout(() => {
+                messageBox.classList.add('hidden', 'translate-x-full');
+                messageBox.classList.remove('animate-slide-out');
+            }, 500);
+        }, 3000);
+    }
+
+    /**
+     * Toggles between different views (Home, Client Details).
+     * @param {string} viewName The ID of the view to show ('homeView' or 'clientDetailsView').
+     */
+    function switchView(viewName) {
+        homeView.classList.add('hidden');
+        clientDetailsView.classList.add('hidden');
+        document.getElementById(viewName).classList.remove('hidden');
+        noteEditorSection.classList.add('hidden'); // Hide editor on view change
+    }
+
+    /**
+     * Hides all modals by adding the 'hidden' class to them.
+     */
+    function hideAllModals() {
+        modalContainer.classList.add('hidden');
+        newClientModal.classList.add('hidden');
+        restoreModal.classList.add('hidden');
+        deleteModal.classList.add('hidden');
+    }
+
+    /**
+     * Shows a specific modal.
+     * @param {HTMLElement} modal The modal element to show.
+     */
+    function showModal(modal) {
+        hideAllModals(); // First, hide any other modals
+        modalContainer.classList.remove('hidden');
+        modal.classList.remove('hidden');
+        modal.classList.remove('scale-95');
+        modal.classList.add('scale-100');
+    }
+
+    /**
+     * Gets all clients from localStorage.
+     * @returns {Array} An array of client objects.
+     */
+    function getClients() {
+        const clients = localStorage.getItem('clients');
+        return clients ? JSON.parse(clients) : [];
+    }
+
+    /**
+     * Saves the clients array to localStorage.
+     * @param {Array} clients The array of client objects to save.
+     */
+    function saveClients(clients) {
+        localStorage.setItem('clients', JSON.stringify(clients));
+    }
+    
+    /**
+     * Event handler for updating client data directly from the table or card.
+     * @param {string} clientId The ID of the client to update.
+     * @param {string} field The field name to update.
+     * @param {*} value The new value for the field.
+     */
+    function updateClientData(clientId, field, value) {
+        const clients = getClients();
+        const clientIndex = clients.findIndex(c => c.id === clientId);
+        if (clientIndex !== -1) {
+            clients[clientIndex][field] = value;
+            saveClients(clients);
+            showMessage(`${field.replace(/([A-Z])/g, ' $1').trim()} updated.`);
+        }
+    }
+    
+    /**
+     * Creates and adds an editable input field to a table cell or card element.
+     * @param {HTMLElement} element The element to make editable (td or div).
+     * @param {string} type The type of input ('text', 'date', 'number', 'select').
+     * @param {string} field The name of the client field to update.
+     * @param {string} clientId The ID of the client.
+     * @param {*} currentValue The current value of the field.
+     */
+    function createEditableInput(element, type, field, clientId, currentValue) {
+        const originalContent = element.innerHTML;
+        element.innerHTML = ''; // Clear the element content
+        let input;
+        if (type === 'select') {
+            input = document.createElement('select');
+            let options = [];
+            if (field === 'paymentStatus') {
+                options = ["Unpaid", "Paid", "Partial"];
+            } else if (field === 'returnToDutyStatus') {
+                options = ["In Progress", "Completed", "Non-Compliant"];
+            }
+            options.forEach(optionText => {
+                const option = document.createElement('option');
+                option.value = optionText;
+                option.textContent = optionText;
+                if (currentValue === optionText) {
+                    option.selected = true;
+                }
+                input.appendChild(option);
+            });
+        } else {
+            input = document.createElement('input');
+            input.type = type;
+            input.value = currentValue || '';
+            if (type === 'number') {
+                input.step = '0.01';
+            }
+        }
+        
+        input.className = 'w-full px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#f39c12] text-white bg-gray-700';
+        element.appendChild(input);
+        input.focus();
+
+        const saveChanges = () => {
+            let newValue = input.value;
+            if (type === 'number') {
+                newValue = parseFloat(newValue) || null;
+            }
+            updateClientData(clientId, field, newValue);
+            renderClientList(); // Re-render to show updated value
+        };
+
+        input.addEventListener('blur', saveChanges);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                saveChanges();
+            }
+        });
+    }
+
+    /**
+     * Navigates to and renders the details for a specific client.
+     * @param {string} clientId The ID of the client to view.
+     */
+    function viewClientDetails(clientId) {
+        const clients = getClients();
+        const client = clients.find(c => c.id === clientId);
+        if (client) {
+            currentClientId = clientId;
+            clientNameTitle.textContent = client.name;
+            renderNotes(client.notes);
+            switchView('clientDetailsView');
+        } else {
+            showMessage('Client not found.');
+            switchView('homeView');
+        }
+    }
+
+    /**
+     * Renders the list of clients for both table and card views.
+     */
+    function renderClientList() {
+        const clients = getClients();
+        clientList.innerHTML = ''; // Clear the table body
+        mobileCards.innerHTML = ''; // Clear the mobile cards container
+
+        if (clients.length === 0) {
+            noClientsMessage.classList.remove('hidden');
+            desktopTable.classList.add('hidden');
+        } else {
+            noClientsMessage.classList.add('hidden');
+            desktopTable.classList.remove('hidden');
+
+            clients.forEach(client => {
+                // --- Table Row Rendering for Desktop ---
+                const clientItem = document.createElement('tr');
+                clientItem.className = 'border-b border-gray-600 cursor-pointer';
+
+                const createEditableCell = (value, field, type) => {
+                    const td = document.createElement('td');
+                    let displayValue = value || 'N/A';
+                    let spanClasses = '';
+
+                    // Add color coding to payment status
+                    if (field === 'paymentStatus') {
+                        if (value === 'Paid') {
+                            spanClasses = 'text-green-400';
+                        } else if (value === 'Unpaid') {
+                            spanClasses = 'text-red-400';
+                        } else if (value === 'Partial') {
+                            spanClasses = 'text-yellow-400';
+                        }
+                    }
+                    
+                    td.innerHTML = `<span class="${spanClasses}">${displayValue}</span>`;
+                    td.classList.add('editable-cell');
+                    td.addEventListener('click', () => {
+                        createEditableInput(td, type, field, client.id, value);
+                    });
+                    return td;
+                };
+
+                const nameTd = document.createElement('td');
+                nameTd.innerHTML = `<span class="font-semibold text-[#f1c40f] hover:underline">${client.name}</span>`;
+                nameTd.addEventListener('click', () => viewClientDetails(client.id));
+                clientItem.appendChild(nameTd);
+
+                clientItem.appendChild(createEditableCell(client.companyName, 'companyName', 'text'));
+                clientItem.appendChild(createEditableCell(client.testType, 'testType', 'text'));
+                clientItem.appendChild(createEditableCell(client.referralSource, 'referralSource', 'text'));
+                clientItem.appendChild(createEditableCell(client.referralDate, 'referralDate', 'date'));
+                clientItem.appendChild(createEditableCell(client.paymentStatus, 'paymentStatus', 'select'));
+                clientItem.appendChild(createEditableCell(client.returnToDutyStatus, 'returnToDutyStatus', 'select'));
+                clientItem.appendChild(createEditableCell(client.firstSession, 'firstSession', 'date'));
+                clientItem.appendChild(createEditableCell(client.secondSession, 'secondSession', 'date'));
+                
+                const notesTd = document.createElement('td');
+                notesTd.innerHTML = `<span class="text-xs font-medium text-gray-400">${client.notes.length} notes</span>`;
+                clientItem.appendChild(notesTd);
+                
+                clientList.appendChild(clientItem);
+
+                // --- Card View Rendering for Mobile ---
+                const clientCard = document.createElement('div');
+                clientCard.className = 'bg-[#34495e] rounded-xl shadow-md p-4 space-y-2 cursor-pointer border border-gray-600';
+                clientCard.onclick = () => viewClientDetails(client.id);
+
+                const cardTitle = document.createElement('div');
+                cardTitle.innerHTML = `<h3 class="text-lg font-semibold text-[#f1c40f]">${client.name}</h3>`;
+                clientCard.appendChild(cardTitle);
+
+                // Create and append a row for each field
+                const createCardRow = (label, value, field, type) => {
+                    const row = document.createElement('div');
+                    row.className = 'card-row';
+                    const labelSpan = document.createElement('span');
+                    labelSpan.className = 'card-label';
+                    labelSpan.textContent = label;
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'card-value';
+                    
+                    let displayValue = value || 'N/A';
+                    let spanClasses = '';
+
+                    // Add color coding to payment status
+                    if (field === 'paymentStatus') {
+                        if (value === 'Paid') {
+                            spanClasses = 'text-green-400';
+                        } else if (value === 'Unpaid') {
+                            spanClasses = 'text-red-400';
+                        } else if (value === 'Partial') {
+                            spanClasses = 'text-yellow-400';
+                        }
+                    }
+                    
+                    valueSpan.innerHTML = `<span class="${spanClasses}">${displayValue}</span>`;
+                    
+                    valueSpan.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent card click event
+                        createEditableInput(valueSpan, type, field, client.id, value);
+                    });
+                    row.appendChild(labelSpan);
+                    row.appendChild(valueSpan);
+                    return row;
+                };
+
+                clientCard.appendChild(createCardRow('Company Name', client.companyName, 'companyName', 'text'));
+                clientCard.appendChild(createCardRow('+ Test Type', client.testType, 'testType', 'text'));
+                clientCard.appendChild(createCardRow('Referral Source', client.referralSource, 'referralSource', 'text'));
+                clientCard.appendChild(createCardRow('Referral Date', client.referralDate, 'referralDate', 'date'));
+                clientCard.appendChild(createCardRow('Payment Status', client.paymentStatus, 'paymentStatus', 'select'));
+                clientCard.appendChild(createCardRow('RTD Status', client.returnToDutyStatus, 'returnToDutyStatus', 'select'));
+                clientCard.appendChild(createCardRow('First Session', client.firstSession, 'firstSession', 'date'));
+                clientCard.appendChild(createCardRow('Second Session', client.secondSession, 'secondSession', 'date'));
+                clientCard.appendChild(createCardRow('Notes', `${client.notes.length} notes`, 'notes', 'text'));
+
+                mobileCards.appendChild(clientCard);
+            });
+        }
+    }
+
+    /**
+     * Renders the list of session notes for the current client.
+     * @param {Array} notes The notes array for the current client.
+     */
+    function renderNotes(notes) {
+        noteList.innerHTML = '';
+        if (notes.length === 0) {
+            noNotesMessage.classList.remove('hidden');
+        } else {
+            noNotesMessage.classList.add('hidden');
+            notes.forEach(note => {
+                const noteItem = document.createElement('li');
+                noteItem.className = 'bg-[#34495e] p-4 rounded-lg shadow-sm border border-gray-600';
+                noteItem.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <p class="text-sm text-gray-400">${new Date(note.timestamp).toLocaleDateString()} at ${new Date(note.timestamp).toLocaleTimeString()}</p>
+                        <div class="flex space-x-2">
+                            <button class="edit-note-btn text-[#f39c12] hover:text-[#e67e22] transition-colors duration-200" data-note-id="${note.id}">Edit</button>
+                            <button class="delete-note-btn text-red-500 hover:text-red-700 transition-colors duration-200" data-note-id="${note.id}">Delete</button>
+                        </div>
+                    </div>
+                    <p class="text-white text-sm whitespace-pre-wrap">${note.content}</p>
+                `;
+                noteList.appendChild(noteItem);
+            });
+        }
+        addNoteEventListeners();
+    }
+
+    /**
+     * Adds event listeners for the edit and delete note buttons.
+     */
+    function addNoteEventListeners() {
+        document.querySelectorAll('.edit-note-btn').forEach(button => {
+            button.onclick = (e) => {
+                e.stopPropagation(); // Stop propagation to prevent accidental clicks
+                const noteId = e.target.dataset.noteId;
+                const clients = getClients();
+                const client = clients.find(c => c.id === currentClientId);
+                const note = client.notes.find(n => n.id === noteId);
+                if (note) {
+                    noteContentTextarea.value = note.content;
+                    editingNoteId = noteId;
+                    noteEditorSection.classList.remove('hidden');
+                }
+            };
+        });
+
+        document.querySelectorAll('.delete-note-btn').forEach(button => {
+            button.onclick = (e) => {
+                e.stopPropagation(); // Stop propagation to prevent accidental clicks
+                const noteId = e.target.dataset.noteId;
+                const clients = getClients();
+                const clientIndex = clients.findIndex(c => c.id === currentClientId);
+                if (clientIndex !== -1) {
+                    const client = clients[clientIndex];
+                    client.notes = client.notes.filter(n => n.id !== noteId);
+                    saveClients(clients);
+                    renderNotes(client.notes);
+                    showMessage('Note deleted.');
+                }
+            };
+        });
+    }
+
+    // --- Event Listeners ---
+
+    // Show new client modal
+    newClientButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent event from bubbling up
+        newClientForm.reset();
+        showModal(newClientModal);
+    });
+
+    // Handle new client form submission
+    newClientForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const clients = getClients();
+        const newClient = {
+            id: crypto.randomUUID(),
+            name: clientNameInput.value.trim(),
+            companyName: companyNameInput.value.trim(),
+            testType: testTypeInput.value.trim(),
+            referralSource: referralSourceInput.value.trim(),
+            referralDate: referralDateInput.value,
+            paymentStatus: paymentStatusSelect.value,
+            returnToDutyStatus: returnToDutyStatusSelect.value,
+            // These values are now initialized as empty and can be updated later in the main UI
+            firstSession: '',
+            secondSession: '',
+            notes: []
+        };
+        clients.push(newClient);
+        saveClients(clients);
+        hideAllModals(); // Use the new function to hide all modals
+        renderClientList();
+        showMessage('Client added successfully!');
+    });
+
+    // Hide all modals when clicking the cancel button in the new client modal
+    cancelClientButton.addEventListener('click', (e) => {
+        e.stopPropagation(); 
+        hideAllModals();
+    });
+
+    // Navigate back to home view
+    homeButton.addEventListener('click', () => {
+        switchView('homeView');
+        currentClientId = null; // Clear the current client ID
+    });
+
+    // Handle 'Add Note' button click
+    newNoteButton.addEventListener('click', () => {
+        noteContentTextarea.value = '';
+        editingNoteId = null;
+        noteEditorSection.classList.remove('hidden');
+    });
+
+    // Handle 'Save Note' button click
+    saveNoteButton.addEventListener('click', () => {
+        if (!currentClientId) return;
+        const clients = getClients();
+        const client = clients.find(c => c.id === currentClientId);
+        if (!client) return;
+
+        if (editingNoteId) {
+            // Edit existing note
+            const note = client.notes.find(n => n.id === editingNoteId);
+            if (note) {
+                note.content = noteContentTextarea.value;
+                note.timestamp = Date.now();
+                showMessage('Note updated.');
+            }
+        } else {
+            // Add new note
+            const newNote = {
+                id: crypto.randomUUID(),
+                timestamp: Date.now(),
+                content: noteContentTextarea.value
+            };
+            client.notes.push(newNote);
+            showMessage('Note added successfully!');
+        }
+        
+        saveClients(clients);
+        renderNotes(client.notes);
+        noteEditorSection.classList.add('hidden');
+    });
+
+    // Handle 'Cancel Edit' button click
+    cancelEditButton.addEventListener('click', () => {
+        noteEditorSection.classList.add('hidden');
+    });
+
+    // Handle 'Delete Client' button click to show the modal
+    deleteClientButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showModal(deleteModal);
+    });
+
+    // Handle 'Confirm Delete' button click inside modal
+    confirmDeleteButton.addEventListener('click', (e) => {
+        e.stopPropagation(); 
+        const clients = getClients();
+        const updatedClients = clients.filter(c => c.id !== currentClientId);
+        saveClients(updatedClients);
+        showMessage('Client and all notes deleted.');
+        hideAllModals(); 
+        switchView('homeView');
+        renderClientList();
+    });
+
+    // Handle 'Cancel Delete' button click inside modal
+    cancelDeleteButton.addEventListener('click', (e) => {
+        e.stopPropagation(); 
+        hideAllModals();
+    });
+
+    // Handle backup button click
+    backupButton.addEventListener('click', () => {
+        try {
+            const clients = getClients();
+            const dataStr = JSON.stringify(clients, null, 2); // format for readability
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const date = new Date().toISOString().slice(0, 10);
+            a.download = `SafePath_Tracker_Backup_${date}.json`;
+            a.href = url;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showMessage('Backup successful! File downloaded.');
+        } catch (error) {
+            showMessage('Backup failed. Check the console for details.');
+            console.error('Backup Error:', error);
+        }
+    });
+
+    // Handle restore button click
+    restoreButton.addEventListener('click', (e) => {
+        e.stopPropagation(); 
+        showModal(restoreModal);
+    });
+
+    // Handle restore file selection and confirmation
+    confirmRestoreButton.addEventListener('click', (e) => {
+        e.stopPropagation(); 
+        const file = restoreFile.files[0];
+        if (!file) {
+            showMessage("Please select a file to restore.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedClients = JSON.parse(e.target.result);
+                if (Array.isArray(importedClients)) {
+                    saveClients(importedClients);
+                    hideAllModals();
+                    renderClientList();
+                    showMessage("Data successfully restored!");
+                } else {
+                    showMessage("Invalid file format. Please select a valid backup file.");
+                }
+            } catch (error) {
+                console.error("Failed to parse JSON:", error);
+                showMessage("Failed to restore data. The file may be corrupted or in the wrong format.");
+            }
+        };
+        reader.onerror = () => {
+            showMessage("Failed to read the file.");
+        };
+        reader.readAsText(file);
+    });
+
+    // Handle cancel restore button click
+    cancelRestoreButton.addEventListener('click', (e) => {
+        e.stopPropagation(); 
+        hideAllModals();
+    });
+
+    // Sort clients by name
+    clientNameHeader.addEventListener('click', () => {
+        const clients = getClients();
+        clients.sort((a, b) => {
+            const nameA = a.name.toLowerCase();
+            const nameB = b.name.toLowerCase();
+            if (sortDirection === 'asc') {
+                return nameA.localeCompare(nameB);
+            } else {
+                return nameB.locale(nameA);
+            }
+        });
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        saveClients(clients);
+        renderClientList();
+    });
+
+    // Initial render when the page loads
+    window.onload = () => {
+        renderClientList();
+    };
+</script>
+</body>
+</html>
